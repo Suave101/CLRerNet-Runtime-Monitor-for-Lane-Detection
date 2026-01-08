@@ -186,7 +186,7 @@ class DynamicTopkAssigner(BaseAssigner):
         img_meta,
     ):
         """
-        computes dynamicly matching based on the cost, including cls cost and lane similarity cost
+        computes dynamically matching based on the cost, including cls cost and lane similarity cost
         Args:
             predictions (Dict[torch.Trnsor]): predictions predicted by each stage, including:
                 cls_logits: shape (Np, 2), anchor_params: shape (Np, 3),
