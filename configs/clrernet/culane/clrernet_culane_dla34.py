@@ -21,7 +21,7 @@ cfg_name = "clrernet_culane_dla34.py"
 
 model = dict(test_cfg=dict(conf_threshold=0.41))
 
-total_epochs = 15
+total_epochs = 30
 checkpoint_config = dict(interval=total_epochs)
 
 train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=total_epochs, val_interval=3)
@@ -29,7 +29,8 @@ val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 
 train_dataloader=dict(
-    batch_size=24
+    batch_size=12,
+    persistent_workers=True
  ) # single GPU setting
 
 # seed

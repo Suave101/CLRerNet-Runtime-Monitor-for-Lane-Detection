@@ -38,7 +38,8 @@ val_cfg = dict(type='ValLoop')
 test_cfg = dict(type='TestLoop')
 
 train_dataloader=dict(
-    batch_size=24
+    batch_size=12,
+    persistent_workers=True
  ) # single GPU setting
 
 # seed
