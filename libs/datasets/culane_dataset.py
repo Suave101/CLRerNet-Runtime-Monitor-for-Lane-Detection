@@ -133,6 +133,13 @@ class CulaneDataset(Dataset):
         img_name = str(Path(self.img_prefix).joinpath(self.img_infos[idx]))
         sub_img_name = self.img_infos[idx]
         img = cv2.imread(img_name)
+        if img is None:
+            raise FileNotFoundError(
+                f"Image not found or unreadable: {img_name!r} "
+                f"(data_root={self.img_prefix!r}, idx={idx}, "
+                f"relative_path={self.img_infos[idx]!r}). "
+                "Check that the data_root and list file paths are correct."
+            )
         ori_shape = img.shape
         results = dict(
             filename=img_name,

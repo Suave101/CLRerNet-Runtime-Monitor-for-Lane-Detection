@@ -187,9 +187,15 @@ def load_culane_img_data(path):
                          [(x_00, y_00), (x_01, y_01),....],
                          [(x_10, y_10), (x_11, y_11),....],
                      ]
+        Returns an empty list if the annotation file does not exist (e.g. when
+        evaluating images from a dataset whose annotations are not in CULane
+        format).
     """
-    with open(path, 'r') as data_file:
-        img_data = data_file.readlines()
+    try:
+        with open(path, 'r') as data_file:
+            img_data = data_file.readlines()
+    except FileNotFoundError:
+        return []
     img_data = [line.split() for line in img_data]
     img_data = [list(map(float, lane)) for lane in img_data]
 
