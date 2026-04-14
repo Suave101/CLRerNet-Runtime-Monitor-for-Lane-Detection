@@ -2,14 +2,17 @@
 Batch evaluation script using the CLRerNet runner pipeline (Approach 2).
 
 For each set of image paths found in experiment JSON log files, this script:
-  1. Writes a temporary CULane-format list file containing only those paths.
-  2. Overrides the test_dataloader and test_evaluator in the config to use
+  1. Detects whether the images are from the CULane or Curvelanes dataset by
+     inspecting the image paths.
+  2. Writes a temporary CULane-format list file containing only those paths,
+     using the detected dataset root so the loader never doubles the prefix.
+  3. Overrides the test_dataloader and test_evaluator in the config to use
      that list, then calls runner.test() to obtain official IoU-based
      CULane metrics (F1, precision, recall).
-  3. Collects all results into a single CSV.
+  4. Collects all results into a single CSV.
 
 Usage:
-    python tools/evaluate_batches.py \
+    python tools/eval_batches.py \
         configs/clrernet/culane/clrernet_culane_dla34_ema.py \
         clrernet_culane_dla34_ema.pth \
         --data-root /path/to/CULane \
@@ -40,13 +43,75 @@ from mmengine.runner import Runner
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_list_file(image_paths: list[str], data_root: str) -> str:
+def _detect_dataset_root(image_paths: list[str], culane_root: str) -> tuple[str, str]:
+    """
+    Detect whether *image_paths* belong to CULane or Curvelanes and return the
+    correct dataset root to use when building the runner.
+
+    The CULane dataset loader always prepends ``data_root`` to every list
+    entry, so the root used here must match the prefix of the actual files on
+    disk.  Passing the wrong root causes a doubled path like::
+
+        /data/CULane/home/user/Curvelanes/…/img.jpg   ← broken
+
+    Detection rules (evaluated in order):
+
+    1. If every path is an absolute path whose prefix matches *culane_root*
+       → ``("culane_root", "CULane")``
+    2. If any path contains the substring "urvelane" (matches "Curvelanes"
+       or "curvelanes" case-insensitively)
+       → ``("/", "Curvelanes")``
+    3. Fallback for any other paths that live outside *culane_root*
+       → ``("/", "external")``, so that ``Path("/").joinpath(path.lstrip("/"))``
+       reconstructs the original absolute path correctly.
+
+    Parameters
+    ----------
+    image_paths:
+        List of image file paths from the experiment JSON.
+    culane_root:
+        Absolute path to the CULane dataset root (from ``--data-root``).
+
+    Returns
+    -------
+    (effective_root, dataset_label)
+        *effective_root* must be used for both ``test_dataloader.dataset.data_root``
+        and ``test_evaluator.data_root`` in the runner config.
+        *dataset_label* is a human-readable string for logging only.
+    """
+    stripped = [p.strip() for p in image_paths if p.strip()]
+    if not stripped:
+        return culane_root, "CULane"
+
+    culane_root_path = Path(culane_root)
+    culane_parts = culane_root_path.parts
+
+    all_culane = all(
+        Path(p).is_absolute()
+        and Path(p).parts[: len(culane_parts)] == culane_parts
+        for p in stripped
+    )
+    if all_culane:
+        return culane_root, "CULane"
+
+    has_curvelanes = any("urvelane" in p for p in stripped)
+    if has_curvelanes:
+        return "/", "Curvelanes"
+
+    return "/", "external"
+
+
+def _make_list_file(image_paths: list[str], effective_root: str) -> str:
     """
     Write a temporary CULane-format list file.
 
-    Each line is the image path *relative* to data_root, prefixed with '/'.
-    The file is placed in a temporary directory that persists until the
+    Each line is the image path *relative* to *effective_root*, prefixed with
+    '/'.  The file is placed in a temporary directory that persists until the
     caller deletes it (or the process exits).
+
+    *effective_root* must be the value returned by :func:`_detect_dataset_root`
+    so that the CULane dataset loader's path construction matches the actual
+    location of the files on disk.
 
     Returns the path to the written file.
     """
@@ -57,30 +122,33 @@ def _make_list_file(image_paths: list[str], data_root: str) -> str:
         img_path = img_path.strip()
         if not img_path:
             continue
-        # Normalize to a relative path that starts with '/'
+        # Normalize to a path relative to effective_root, prefixed with '/'.
         try:
-            rel = "/" + str(Path(img_path).relative_to(data_root))
+            rel = "/" + str(Path(img_path).relative_to(effective_root))
         except ValueError:
-            # Path is already relative, or uses a different root — keep as-is
             rel = img_path if img_path.startswith("/") else "/" + img_path
         tmp.write(rel + "\n")
     tmp.close()
     return tmp.name
 
 
-def _build_runner(cfg_path: str, checkpoint: str, data_root: str, list_file: str) -> Runner:
+def _build_runner(cfg_path: str, checkpoint: str, effective_root: str, list_file: str) -> Runner:
     """
     Build an mmengine Runner whose test split is limited to *list_file*.
     A fresh Runner is built each time so that the internal mmengine state
     (results cache, evaluator buffers) is clean.
+
+    *effective_root* is the root used when writing *list_file* and must be set
+    on both the dataloader dataset and the evaluator so their path construction
+    is consistent with the list entries.
     """
     cfg = Config.fromfile(cfg_path)
 
     # Point both the dataloader and the evaluator at the custom list.
-    cfg.test_dataloader.dataset.data_root = data_root
+    cfg.test_dataloader.dataset.data_root = effective_root
     cfg.test_dataloader.dataset.data_list = list_file
 
-    cfg.test_evaluator.data_root = data_root
+    cfg.test_evaluator.data_root = effective_root
     cfg.test_evaluator.data_list = list_file
 
     cfg.load_from = checkpoint
@@ -105,6 +173,11 @@ def _run_batch(
     """
     Evaluate a single batch of images.
 
+    Detects whether the images are from CULane or Curvelanes by inspecting
+    their paths and sets the dataset root accordingly before building the
+    runner.  This prevents the CULane dataset loader from doubling the path
+    prefix when the images live outside *data_root*.
+
     Returns a dict with the keys produced by CULaneMetric.compute_metrics,
     e.g. F1_0.5, Precision0.5, Recall0.5, TP0.5, FP0.5, FN0.5 …
     Returns an empty dict if image_paths is empty or if evaluation fails.
@@ -112,9 +185,12 @@ def _run_batch(
     if not image_paths:
         return {}
 
-    list_file = _make_list_file(image_paths, data_root)
+    effective_root, dataset_label = _detect_dataset_root(image_paths, data_root)
+    print(f"  [Dataset] Detected: {dataset_label} (effective_root={effective_root!r})")
+
+    list_file = _make_list_file(image_paths, effective_root)
     try:
-        runner = _build_runner(cfg_path, checkpoint, data_root, list_file)
+        runner = _build_runner(cfg_path, checkpoint, effective_root, list_file)
         metrics = runner.test()  # returns the dict from compute_metrics
         return metrics if metrics else {}
     finally:
