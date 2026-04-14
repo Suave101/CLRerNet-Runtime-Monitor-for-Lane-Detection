@@ -40,47 +40,71 @@ from mmengine.runner import Runner
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_list_file(image_paths: list[str], data_root: str) -> str:
+def _make_list_file(image_paths: list[str], data_root: str) -> tuple[str, str]:
     """
     Write a temporary CULane-format list file.
 
-    Each line is the image path *relative* to data_root, prefixed with '/'.
-    The file is placed in a temporary directory that persists until the
-    caller deletes it (or the process exits).
+    Each line is the image path *relative* to effective_root, prefixed with '/'.
+    The CULane dataset loader prepends data_root to every list entry, so the
+    effective root must match whatever is set in the config.
 
-    Returns the path to the written file.
+    When all images live under *data_root* the function uses data_root as-is.
+    When any image lives outside *data_root* (e.g. a Curvelanes path when
+    data_root points to the CULane tree) the effective root is set to "/" so
+    that ``os.path.join("/", path.lstrip("/")) == absolute_path``.  Without
+    this the loader would double the prefix, producing a path like::
+
+        /data/CULane/home/user/Curvelanes/…/img.jpg   ← broken
+
+    Returns
+    -------
+    (list_file_path, effective_root)
+        Callers must use *effective_root* when overriding
+        ``test_dataloader.dataset.data_root`` and
+        ``test_evaluator.data_root`` in the config.
     """
+    stripped = [p.strip() for p in image_paths if p.strip()]
+
+    # Choose the effective root: use data_root only when every image lives
+    # under it; otherwise fall back to "/" so absolute paths round-trip safely.
+    data_root_path = Path(data_root)
+    all_under_root = all(
+        Path(p).is_absolute() and Path(p).parts[:len(data_root_path.parts)] == data_root_path.parts
+        for p in stripped
+    )
+    effective_root = data_root if all_under_root else "/"
+
     tmp = tempfile.NamedTemporaryFile(
         mode="w", suffix=".txt", delete=False, prefix="culane_batch_"
     )
-    for img_path in image_paths:
-        img_path = img_path.strip()
-        if not img_path:
-            continue
-        # Normalize to a relative path that starts with '/'
+    for img_path in stripped:
+        # Normalize to a path relative to effective_root, prefixed with '/'.
         try:
-            rel = "/" + str(Path(img_path).relative_to(data_root))
+            rel = "/" + str(Path(img_path).relative_to(effective_root))
         except ValueError:
-            # Path is already relative, or uses a different root — keep as-is
             rel = img_path if img_path.startswith("/") else "/" + img_path
         tmp.write(rel + "\n")
     tmp.close()
-    return tmp.name
+    return tmp.name, effective_root
 
 
-def _build_runner(cfg_path: str, checkpoint: str, data_root: str, list_file: str) -> Runner:
+def _build_runner(cfg_path: str, checkpoint: str, effective_root: str, list_file: str) -> Runner:
     """
     Build an mmengine Runner whose test split is limited to *list_file*.
     A fresh Runner is built each time so that the internal mmengine state
     (results cache, evaluator buffers) is clean.
+
+    *effective_root* is the root that was used when writing *list_file* and
+    must be set on both the dataloader dataset and the evaluator so their path
+    construction is consistent.
     """
     cfg = Config.fromfile(cfg_path)
 
     # Point both the dataloader and the evaluator at the custom list.
-    cfg.test_dataloader.dataset.data_root = data_root
+    cfg.test_dataloader.dataset.data_root = effective_root
     cfg.test_dataloader.dataset.data_list = list_file
 
-    cfg.test_evaluator.data_root = data_root
+    cfg.test_evaluator.data_root = effective_root
     cfg.test_evaluator.data_list = list_file
 
     cfg.load_from = checkpoint
@@ -112,9 +136,9 @@ def _run_batch(
     if not image_paths:
         return {}
 
-    list_file = _make_list_file(image_paths, data_root)
+    list_file, effective_root = _make_list_file(image_paths, data_root)
     try:
-        runner = _build_runner(cfg_path, checkpoint, data_root, list_file)
+        runner = _build_runner(cfg_path, checkpoint, effective_root, list_file)
         metrics = runner.test()  # returns the dict from compute_metrics
         return metrics if metrics else {}
     finally:
