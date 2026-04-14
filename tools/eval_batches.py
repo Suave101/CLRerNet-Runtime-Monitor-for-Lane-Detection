@@ -132,23 +132,34 @@ def _make_list_file(image_paths: list[str], effective_root: str) -> str:
     return tmp.name
 
 
-def _build_runner(cfg_path: str, checkpoint: str, effective_root: str, list_file: str) -> Runner:
+def _build_runner(
+    cfg_path: str,
+    checkpoint: str,
+    effective_root: str,
+    list_file: str,
+    culane_root: str,
+) -> Runner:
     """
     Build an mmengine Runner whose test split is limited to *list_file*.
     A fresh Runner is built each time so that the internal mmengine state
     (results cache, evaluator buffers) is clean.
 
-    *effective_root* is the root used when writing *list_file* and must be set
-    on both the dataloader dataset and the evaluator so their path construction
-    is consistent with the list entries.
+    *effective_root* is the root used when writing *list_file* and is set on
+    the dataloader dataset so its path construction matches the list entries.
+
+    *culane_root* is always used for the evaluator's ``data_root`` so that the
+    CULane category split files (``list/test_split/``) can be found, regardless
+    of whether the images originate from CULane or another dataset.
     """
     cfg = Config.fromfile(cfg_path)
 
-    # Point both the dataloader and the evaluator at the custom list.
+    # Point the dataloader at the custom list using the dataset-specific root.
     cfg.test_dataloader.dataset.data_root = effective_root
     cfg.test_dataloader.dataset.data_list = list_file
 
-    cfg.test_evaluator.data_root = effective_root
+    # The evaluator always uses the CULane root so it can locate the category
+    # split files (list/test_split/*.txt) which only exist there.
+    cfg.test_evaluator.data_root = culane_root
     cfg.test_evaluator.data_list = list_file
 
     cfg.load_from = checkpoint
@@ -159,6 +170,17 @@ def _build_runner(cfg_path: str, checkpoint: str, effective_root: str, list_file
     # Disable visualization hooks that are not needed here.
     cfg.default_hooks = cfg.get("default_hooks", {})
     cfg.default_hooks.pop("visualization", None)
+
+    # Disable the auxiliary segmentation loss/decoder during evaluation.
+    # These components are only used during training; the pretrained checkpoint
+    # does not include their weights, which produces spurious "missing keys"
+    # warnings when the model is built with loss_weight > 0.
+    # KeyError: loss_seg key absent; AttributeError: bbox_head absent or not a ConfigDict.
+    try:
+        cfg.model.bbox_head.loss_seg.loss_weight = 0
+    except (AttributeError, KeyError):
+        # Config does not have loss_seg; nothing to disable.
+        pass
 
     runner = Runner.from_cfg(cfg)
     return runner
@@ -190,7 +212,9 @@ def _run_batch(
 
     list_file = _make_list_file(image_paths, effective_root)
     try:
-        runner = _build_runner(cfg_path, checkpoint, effective_root, list_file)
+        runner = _build_runner(
+            cfg_path, checkpoint, effective_root, list_file, culane_root=data_root
+        )
         metrics = runner.test()  # returns the dict from compute_metrics
         return metrics if metrics else {}
     finally:
