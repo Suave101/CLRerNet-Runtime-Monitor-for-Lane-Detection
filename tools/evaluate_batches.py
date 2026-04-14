@@ -57,7 +57,7 @@ def _make_list_file(image_paths: list[str], data_root: str) -> str:
         img_path = img_path.strip()
         if not img_path:
             continue
-        # Normalise to a relative path that starts with '/'
+        # Normalize to a relative path that starts with '/'
         try:
             rel = "/" + str(Path(img_path).relative_to(data_root))
         except ValueError:
@@ -88,7 +88,7 @@ def _build_runner(cfg_path: str, checkpoint: str, data_root: str, list_file: str
     if "work_dir" not in cfg or cfg.work_dir is None:
         cfg.work_dir = "./work_dirs/evaluate_batches"
 
-    # Disable visualisation hooks that are not needed here.
+    # Disable visualization hooks that are not needed here.
     cfg.default_hooks = cfg.get("default_hooks", {})
     cfg.default_hooks.pop("visualization", None)
 
@@ -216,7 +216,11 @@ def main():
                         "run_idx": run.get("Run"),
                         "seed": run.get("Seed"),
                         "images_in_sample": len(image_paths),
-                        # Official CULane metrics at IoU 0.5
+                    # Official CULane metrics at IoU 0.5.
+                    # Key names come directly from CULaneMetric.compute_metrics /
+                    # eval_predictions: TP/FP/FN/Precision/Recall use no separator
+                    # (e.g. "Precision0.5") while F1 uses one ("F1_0.5").  This is
+                    # the upstream convention and is intentional here.
                         "f1_score": metrics.get("F1_0.5"),
                         "precision": metrics.get("Precision0.5"),
                         "recall": metrics.get("Recall0.5"),
