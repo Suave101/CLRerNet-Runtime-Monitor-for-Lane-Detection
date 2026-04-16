@@ -1,15 +1,12 @@
 """
-Batch evaluation script using the CLRerNet runner pipeline (Approach 2).
+Batch evaluation script using the CLRerNet runner pipeline (Sandbox Approach).
 
 For each set of image paths found in experiment JSON log files, this script:
-  1. Detects whether the images are from the CULane or Curvelanes dataset by
-     inspecting the image paths.
-  2. Writes a temporary CULane-format list file containing only those paths,
-     using the detected dataset root so the loader never doubles the prefix.
-  3. Overrides the test_dataloader and test_evaluator in the config to use
-     that list, then calls runner.test() to obtain official IoU-based
-     CULane metrics (F1, precision, recall).
-  4. Collects all results into a single CSV.
+  1. Dynamically constructs a temporary CULane-structured sandbox directory.
+  2. Symlinks the target images into the sandbox with safe relative paths.
+  3. Converts Curvelanes JSON labels to CULane .lines.txt format, scaling to 1640x590.
+  4. Points the dataloader and evaluator at this perfect isolated sandbox.
+  5. Cleans up the sandbox after metric extraction.
 
 Usage:
     python tools/eval_batches.py \
@@ -23,6 +20,7 @@ Usage:
 import argparse
 import json
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -38,128 +36,149 @@ if _REPO_ROOT not in sys.path:
 from mmengine.config import Config
 from mmengine.runner import Runner
 
+import cv2
+import numpy as np
+
+# ==============================================================================
+# ULTIMATE RUNTIME INTERCEPTOR (MONKEY PATCH V2)
+# ==============================================================================
+try:
+    from libs.datasets.pipelines.compose import Compose
+    if not hasattr(Compose, '_patched_for_resize'):
+        _orig_compose_call = Compose.__call__
+        
+        def _patched_compose_call(self, data):
+            if 'img' in data and isinstance(data['img'], np.ndarray):
+                h, w = data['img'].shape[:2]
+                if w != 1640 or h != 590:
+                    data['img'] = cv2.resize(data['img'], (1640, 590))
+                    data['img_shape'] = (590, 1640)
+                    data['ori_shape'] = (590, 1640)
+            
+            for t in self.transforms:
+                data = t(data)
+                if data is None:
+                    return None
+            return data
+            
+        Compose.__call__ = _patched_compose_call
+        Compose._patched_for_resize = True
+        print("\n  [SYSTEM] UNCONDITIONAL INTERCEPTOR ACTIVE: All incoming images forced to 1640x590.\n")
+except Exception as e:
+    print(f"\n  [WARN] Failed to initialize Pipeline Interceptor: {e}\n")
+# ==============================================================================
+
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _detect_dataset_root(image_paths: list[str], culane_root: str) -> tuple[str, str]:
+def _setup_sandbox(image_paths: list[str]) -> Path:
     """
-    Detect whether *image_paths* belong to CULane or Curvelanes and return the
-    correct dataset root to use when building the runner.
-
-    The CULane dataset loader always prepends ``data_root`` to every list
-    entry, so the root used here must match the prefix of the actual files on
-    disk.  Passing the wrong root causes a doubled path like::
-
-        /data/CULane/home/user/Curvelanes/…/img.jpg   ← broken
-
-    Detection rules (evaluated in order):
-
-    1. If every path is an absolute path whose prefix matches *culane_root*
-       → ``("culane_root", "CULane")``
-    2. If any path contains the substring "urvelane" (matches "Curvelanes"
-       or "curvelanes" case-insensitively)
-       → ``("/", "Curvelanes")``
-    3. Fallback for any other paths that live outside *culane_root*
-       → ``("/", "external")``, so that ``Path("/").joinpath(path.lstrip("/"))``
-       reconstructs the original absolute path correctly.
-
-    Parameters
-    ----------
-    image_paths:
-        List of image file paths from the experiment JSON.
-    culane_root:
-        Absolute path to the CULane dataset root (from ``--data-root``).
-
-    Returns
-    -------
-    (effective_root, dataset_label)
-        *effective_root* must be used for both ``test_dataloader.dataset.data_root``
-        and ``test_evaluator.data_root`` in the runner config.
-        *dataset_label* is a human-readable string for logging only.
+    Creates a temporary CULane-structured filesystem isolating the C++ 
+    evaluator from string concatenation bugs on absolute paths.
     """
-    stripped = [p.strip() for p in image_paths if p.strip()]
-    if not stripped:
-        return culane_root, "CULane"
-
-    culane_root_path = Path(culane_root)
-    culane_parts = culane_root_path.parts
-
-    all_culane = all(
-        Path(p).is_absolute()
-        and Path(p).parts[: len(culane_parts)] == culane_parts
-        for p in stripped
-    )
-    if all_culane:
-        return culane_root, "CULane"
-
-    has_curvelanes = any("urvelane" in p for p in stripped)
-    if has_curvelanes:
-        return "/", "Curvelanes"
-
-    return "/", "external"
-
-
-def _make_list_file(image_paths: list[str], effective_root: str) -> str:
-    """
-    Write a temporary CULane-format list file.
-
-    Each line is the image path *relative* to *effective_root*, prefixed with
-    '/'.  The file is placed in a temporary directory that persists until the
-    caller deletes it (or the process exits).
-
-    *effective_root* must be the value returned by :func:`_detect_dataset_root`
-    so that the CULane dataset loader's path construction matches the actual
-    location of the files on disk.
-
-    Returns the path to the written file.
-    """
-    tmp = tempfile.NamedTemporaryFile(
-        mode="w", suffix=".txt", delete=False, prefix="culane_batch_"
-    )
-    for img_path in image_paths:
-        img_path = img_path.strip()
-        if not img_path:
-            continue
-        # Normalize to a path relative to effective_root, prefixed with '/'.
-        try:
-            rel = "/" + str(Path(img_path).relative_to(effective_root))
-        except ValueError:
-            rel = img_path if img_path.startswith("/") else "/" + img_path
-        tmp.write(rel + "\n")
-    tmp.close()
-    return tmp.name
+    sandbox = Path(tempfile.mkdtemp(prefix="culane_sandbox_"))
+    
+    # Replicate exact CULane directory structure
+    (sandbox / "images").mkdir(exist_ok=True)
+    split_dir = sandbox / "list" / "test_split"
+    split_dir.mkdir(parents=True, exist_ok=True)
+    
+    # --- FIX: Create empty files for all 9 standard CULane categories ---
+    # This prevents the CULane metric from throwing FileNotFoundError
+    culane_categories = [
+        "test0_normal.txt", "test1_crowd.txt", "test2_hlight.txt",
+        "test3_shadow.txt", "test4_noline.txt", "test5_arrow.txt",
+        "test6_curve.txt", "test7_cross.txt", "test8_night.txt"
+    ]
+    for cat in culane_categories:
+        (split_dir / cat).touch()
+    # --------------------------------------------------------------------
+    
+    list_file_path = sandbox / "test_list.txt"
+    split_file_path = split_dir / "test0_normal.txt"
+    
+    with open(list_file_path, "w") as lf, open(split_file_path, "w") as sf:
+        for i, img_path in enumerate(image_paths):
+            orig_img = Path(img_path.strip())
+            if not orig_img.exists():
+                continue
+            
+            # Use completely safe relative paths (no leading filesystem roots)
+            rel_name = f"images/img_{i:04d}.jpg"
+            fake_img = sandbox / rel_name
+            
+            # Symlink the actual image into the sandbox
+            try:
+                os.symlink(orig_img.absolute(), fake_img)
+            except OSError:
+                shutil.copy2(orig_img, fake_img)
+            
+            # Generate the CULane Ground Truth
+            fake_txt = fake_img.with_suffix(".lines.txt")
+            converted = False
+            
+            parts = list(orig_img.parts)
+            # Detect if it's Curvelanes and convert JSON to TXT
+            if "images" in parts and "urvelane" in str(orig_img).lower():
+                idx = parts.index("images")
+                parts[idx] = "labels"
+                json_path = Path(*parts[:-1]) / f"{orig_img.stem}.lines.json"
+                
+                if json_path.exists():
+                    try:
+                        img = cv2.imread(str(orig_img))
+                        orig_h, orig_w = img.shape[:2] if img is not None else (1440, 2560)
+                        scale_x = 1640.0 / orig_w
+                        scale_y = 590.0 / orig_h
+                        
+                        with open(json_path, "r") as jf:
+                            data = json.load(jf)
+                        
+                        with open(fake_txt, "w") as tf:
+                            for line in data.get("Lines", []):
+                                coords = []
+                                for pt in line:
+                                    nx = float(pt["x"]) * scale_x
+                                    ny = float(pt["y"]) * scale_y
+                                    coords.append(f"{nx:.3f}")
+                                    coords.append(f"{ny:.3f}")
+                                tf.write(" ".join(coords) + "\n")
+                        converted = True
+                    except Exception as e:
+                        print(f"  [WARN] Failed converting JSON for {orig_img.name}: {e}")
+            
+            # Fallback: copy existing CULane TXT or leave empty
+            if not converted:
+                orig_txt = orig_img.with_suffix(".lines.txt")
+                if orig_txt.exists():
+                    try:
+                        os.symlink(orig_txt.absolute(), fake_txt)
+                    except OSError:
+                        shutil.copy2(orig_txt, fake_txt)
+                else:
+                    fake_txt.touch() # Empty file => 0 lanes
+                    
+            # Write exactly how CULane metric expects it
+            lf.write(f"/{rel_name}\n")
+            sf.write(f"/{rel_name}\n")
+            
+    return sandbox
 
 
 def _build_runner(
     cfg_path: str,
     checkpoint: str,
-    effective_root: str,
+    sandbox_root: str,
     list_file: str,
-    culane_root: str,
 ) -> Runner:
-    """
-    Build an mmengine Runner whose test split is limited to *list_file*.
-    A fresh Runner is built each time so that the internal mmengine state
-    (results cache, evaluator buffers) is clean.
-
-    *effective_root* is the root used when writing *list_file* and is set on
-    the dataloader dataset so its path construction matches the list entries.
-
-    *culane_root* is always used for the evaluator's ``data_root`` so that the
-    CULane category split files (``list/test_split/``) can be found, regardless
-    of whether the images originate from CULane or another dataset.
-    """
     cfg = Config.fromfile(cfg_path)
 
-    # Point the dataloader at the custom list using the dataset-specific root.
-    cfg.test_dataloader.dataset.data_root = effective_root
+    # Point everything exclusively to our perfect temporary sandbox
+    cfg.test_dataloader.dataset.data_root = sandbox_root
     cfg.test_dataloader.dataset.data_list = list_file
-
-    # The evaluator always uses the CULane root so it can locate the category
-    # split files (list/test_split/*.txt) which only exist there.
-    cfg.test_evaluator.data_root = culane_root
+    cfg.test_evaluator.data_root = sandbox_root
     cfg.test_evaluator.data_list = list_file
 
     cfg.load_from = checkpoint
@@ -167,19 +186,12 @@ def _build_runner(
     if "work_dir" not in cfg or cfg.work_dir is None:
         cfg.work_dir = "./work_dirs/evaluate_batches"
 
-    # Disable visualization hooks that are not needed here.
     cfg.default_hooks = cfg.get("default_hooks", {})
     cfg.default_hooks.pop("visualization", None)
 
-    # Disable the auxiliary segmentation loss/decoder during evaluation.
-    # These components are only used during training; the pretrained checkpoint
-    # does not include their weights, which produces spurious "missing keys"
-    # warnings when the model is built with loss_weight > 0.
-    # KeyError: loss_seg key absent; AttributeError: bbox_head absent or not a ConfigDict.
     try:
         cfg.model.bbox_head.loss_seg.loss_weight = 0
     except (AttributeError, KeyError):
-        # Config does not have loss_seg; nothing to disable.
         pass
 
     runner = Runner.from_cfg(cfg)
@@ -189,36 +201,24 @@ def _build_runner(
 def _run_batch(
     cfg_path: str,
     checkpoint: str,
-    data_root: str,
+    data_root: str,  # Unused directly, sandbox abstracts it
     image_paths: list[str],
 ) -> dict:
-    """
-    Evaluate a single batch of images.
-
-    Detects whether the images are from CULane or Curvelanes by inspecting
-    their paths and sets the dataset root accordingly before building the
-    runner.  This prevents the CULane dataset loader from doubling the path
-    prefix when the images live outside *data_root*.
-
-    Returns a dict with the keys produced by CULaneMetric.compute_metrics,
-    e.g. F1_0.5, Precision0.5, Recall0.5, TP0.5, FP0.5, FN0.5 …
-    Returns an empty dict if image_paths is empty or if evaluation fails.
-    """
     if not image_paths:
         return {}
 
-    effective_root, dataset_label = _detect_dataset_root(image_paths, data_root)
-    print(f"  [Dataset] Detected: {dataset_label} (effective_root={effective_root!r})")
+    sandbox = _setup_sandbox(image_paths)
+    list_file = str(sandbox / "test_list.txt")
 
-    list_file = _make_list_file(image_paths, effective_root)
     try:
         runner = _build_runner(
-            cfg_path, checkpoint, effective_root, list_file, culane_root=data_root
+            cfg_path, checkpoint, str(sandbox), list_file
         )
-        metrics = runner.test()  # returns the dict from compute_metrics
+        metrics = runner.test()  
         return metrics if metrics else {}
     finally:
-        os.unlink(list_file)
+        # Obliterate sandbox when done so the server doesn't bloat
+        shutil.rmtree(sandbox, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +234,7 @@ def parse_args():
     parser.add_argument(
         "--data-root",
         required=True,
-        help="CULane dataset root directory (contains list/, driver_* …)",
+        help="CULane dataset root directory (unused due to sandbox, kept for cli compat)",
     )
     parser.add_argument(
         "--logs-dir",
@@ -289,7 +289,6 @@ def main():
                     continue
 
                 if key == "Sanity Check":
-                    # Single run, not a list
                     runs = [
                         {
                             "Image Paths": exp["data"][key]["Image Paths"],
@@ -305,10 +304,8 @@ def main():
                     image_paths = run.get("Image Paths", [])
                     res = run.get("Results", {})
 
-                    # Run official CULane evaluation via runner.test()
                     metrics = _run_batch(cfg_path, checkpoint, data_root, image_paths)
 
-                    # Primary IoU threshold is 0.5 (matches CULane convention).
                     row = {
                         **args_fields,
                         "log_file": filename,
@@ -316,21 +313,14 @@ def main():
                         "run_idx": run.get("Run"),
                         "seed": run.get("Seed"),
                         "images_in_sample": len(image_paths),
-                    # Official CULane metrics at IoU 0.5.
-                    # Key names come directly from CULaneMetric.compute_metrics /
-                    # eval_predictions: TP/FP/FN/Precision/Recall use no separator
-                    # (e.g. "Precision0.5") while F1 uses one ("F1_0.5").  This is
-                    # the upstream convention and is intentional here.
                         "f1_score": metrics.get("F1_0.5"),
                         "precision": metrics.get("Precision0.5"),
                         "recall": metrics.get("Recall0.5"),
                         "tp": metrics.get("TP0.5"),
                         "fp": metrics.get("FP0.5"),
                         "fn": metrics.get("FN0.5"),
-                        # Optional: also expose IoU 0.1 and 0.75 columns
                         "f1_score_iou0.1": metrics.get("F1_0.1"),
                         "f1_score_iou0.75": metrics.get("F1_0.75"),
-                        # Distribution-shift test statistics from the JSON
                         "mmd_stat": res.get("MMD", {}).get("Stat"),
                         "mmd_p_value": res.get("MMD", {}).get("P-Value"),
                         "mmd_shift_detected": res.get("MMD", {}).get("Shift Detected"),
