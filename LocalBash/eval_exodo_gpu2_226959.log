@@ -1,0 +1,17 @@
+----------------------------------------------------
+Starting Evaluation on A100 (gpu2)
+Target: All JSONs in /home1/adoyle2025/Distribution-Shift-Lane-Perception/LocalBash
+Host: gpu05
+----------------------------------------------------
+
+  [SYSTEM] UNCONDITIONAL INTERCEPTOR ACTIVE: All incoming images forced to 1640x590.
+
+
+=== Pass 1/2: Collecting unique image paths from all JSON files ===
+Traceback (most recent call last):
+  File "/home1/adoyle2025/CLRerNet-Runtime-Monitor-for-Lane-Detection/tools/eval_batches.py", line 440, in <module>
+    main()
+  File "/home1/adoyle2025/CLRerNet-Runtime-Monitor-for-Lane-Detection/tools/eval_batches.py", line 315, in main
+    all_runs_first_pass = list(_iter_json_runs(json_files))
+NameError: name '_iter_json_runs' is not defined
+Evaluation finished at: Thu Apr 16 02:13:32 PM EDT 2026

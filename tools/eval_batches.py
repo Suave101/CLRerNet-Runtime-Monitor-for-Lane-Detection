@@ -289,7 +289,62 @@ def parse_args():
     )
     return parser.parse_args()
 
+def _iter_json_runs(json_files: list[Path]):
+    """Iterates through JSON logs and yields image paths and run metadata."""
+    for json_path in json_files:
+        try:
+            with open(json_path, "r") as f:
+                data = json.load(f)
+            for exp in data.get("experiments", []):
+                # Check for Sanity Check or Test Run data
+                for key in ["Sanity Check", "Data Shift Test Data"]:
+                    if key not in exp.get("data", {}):
+                        continue
+                    
+                    if key == "Sanity Check":
+                        yield {"image_paths": exp["data"][key].get("Image Paths", [])}
+                    else:
+                        runs = exp["data"][key].get("Individual Test Data", [])
+                        for run in runs:
+                            yield {"image_paths": run.get("Image Paths", [])}
+        except Exception as e:
+            print(f"  [WARN] Failed to read {json_path.name}: {e}")
 
+def _normalize_image_path(path_str: str, data_root: str) -> str:
+    """Ensures paths are absolute and clean for use as dictionary keys."""
+    if not path_str:
+        return ""
+    p = Path(path_str.strip())
+    # If the path is relative, join it with data_root
+    if not p.is_absolute():
+        p = Path(data_root) / p
+    return str(p.absolute())
+
+def _load_metrics_cache(cache_path: str) -> dict:
+    if os.path.exists(cache_path):
+        with open(cache_path, "r") as f:
+            return json.load(f)
+    return {}
+
+def _save_metrics_cache(cache_path: str, cache: dict):
+    with open(cache_path, "w") as f:
+        json.dump(cache, f, indent=2)
+
+def _evaluate_image_worker(cfg_path, checkpoint, data_root, image_path, gpu_id):
+    """
+    Worker function for ProcessPoolExecutor. 
+    Sets the GPU ID and runs evaluation for a single image.
+    """
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    _force_sequential_culane_eval() # Ensure no nested multi-processing
+    
+    try:
+        # We wrap the single path in a list because _run_batch expects a list
+        metrics = _run_batch(cfg_path, checkpoint, data_root, [image_path])
+        return image_path, metrics, None
+    except Exception as e:
+        return image_path, None, str(e)
+    
 def main():
     args = parse_args()
 

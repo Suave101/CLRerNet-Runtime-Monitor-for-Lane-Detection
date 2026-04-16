@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --output=/home1/adoyle2025/CLRerNet-Runtime-Monitor-for-Lane-Detection/LocalBash/eval_exodo_gpu2_%j.log
-#SBATCH --partition=gpu2
+#SBATCH --partition=eternity
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=128G
