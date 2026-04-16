@@ -38,6 +38,19 @@ if _REPO_ROOT not in sys.path:
 from mmengine.config import Config
 from mmengine.runner import Runner
 
+_EXPLICITLY_MAPPED_METRIC_KEYS = {
+    "F1_0.5",
+    "Precision0.5",
+    "Recall0.5",
+    "Accuracy0.5",
+    "Acc0.5",
+    "TP0.5",
+    "FP0.5",
+    "FN0.5",
+    "F1_0.1",
+    "F1_0.75",
+}
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -63,6 +76,16 @@ def _safe_mean(values: list[float | int]) -> float | None:
     if not values:
         return None
     return float(sum(values) / len(values))
+
+
+def _get_metric_with_fallbacks(
+    metrics: dict[str, float | None], keys: list[str], default: float
+) -> float:
+    for key in keys:
+        value = metrics.get(key)
+        if value is not None:
+            return float(value)
+    return default
 
 
 def _detect_dataset_root(image_paths: list[str], culane_root: str) -> tuple[str, str]:
@@ -436,7 +459,9 @@ def main():
     cache_path = os.path.abspath(
         args.cache_file or os.path.join(logs_dir, "image_metrics_cache.json")
     )
-    num_gpus = max(1, int(args.num_gpus))
+    if args.num_gpus <= 0:
+        raise ValueError("--num-gpus must be a positive integer.")
+    num_gpus = args.num_gpus
 
     json_files = sorted(Path(logs_dir).glob("*.json"))
     if not json_files:
@@ -504,12 +529,11 @@ def main():
             if (key := _normalize_image_path(p, data_root))
         ]
         avg_metrics = _average_run_metrics(normalized_image_keys, metrics_cache)
+        cached_count = sum(1 for p in normalized_image_keys if p in metrics_cache)
 
-        accuracy_05 = avg_metrics.get("Accuracy0.5")
-        if accuracy_05 is None:
-            accuracy_05 = avg_metrics.get("Acc0.5")
-        if accuracy_05 is None:
-            accuracy_05 = float("nan")
+        accuracy_05 = _get_metric_with_fallbacks(
+            avg_metrics, ["Accuracy0.5", "Acc0.5"], default=float("nan")
+        )
 
         row = {
             **run["args_fields"],
@@ -518,11 +542,7 @@ def main():
             "run_idx": run["run_idx"],
             "seed": run["seed"],
             "images_in_sample": len(image_paths),
-            "cached_images_used": sum(
-                1
-                for p in normalized_image_keys
-                if p in metrics_cache
-            ),
+            "cached_images_used": cached_count,
             # Averaged IoU-based metrics (primary IoU=0.5).
             "f1_score": avg_metrics.get("F1_0.5"),
             "precision": avg_metrics.get("Precision0.5"),
@@ -540,20 +560,8 @@ def main():
         }
 
         # Also persist all averaged numeric metric keys for "etc." analysis.
-        explicitly_mapped_metric_keys = {
-            "F1_0.5",
-            "Precision0.5",
-            "Recall0.5",
-            "Accuracy0.5",
-            "Acc0.5",
-            "TP0.5",
-            "FP0.5",
-            "FN0.5",
-            "F1_0.1",
-            "F1_0.75",
-        }
         for key, value in avg_metrics.items():
-            if key in explicitly_mapped_metric_keys:
+            if key in _EXPLICITLY_MAPPED_METRIC_KEYS:
                 continue
             row[f"avg_{key}"] = value
         all_rows.append(row)
