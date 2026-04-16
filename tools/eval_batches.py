@@ -23,7 +23,9 @@ import os
 import shutil
 import sys
 import tempfile
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from tqdm import tqdm
@@ -198,6 +200,31 @@ def _build_runner(
     return runner
 
 
+def _force_sequential_culane_eval() -> None:
+    """
+    Force CULane metric computation to run sequentially inside each worker.
+
+    This avoids nested multiprocessing failures when outer image-level
+    evaluation already runs in parallel processes.
+    """
+    try:
+        from libs.datasets.metrics import culane_metric as culane_metric_mod
+    except Exception:
+        return
+
+    if getattr(culane_metric_mod, "_eval_batches_sequential_patched", False):
+        return
+
+    original_eval_predictions = culane_metric_mod.eval_predictions
+
+    def _wrapped_eval_predictions(*args, **kwargs):
+        kwargs["sequential"] = True
+        return original_eval_predictions(*args, **kwargs)
+
+    culane_metric_mod.eval_predictions = _wrapped_eval_predictions
+    culane_metric_mod._eval_batches_sequential_patched = True
+
+
 def _run_batch(
     cfg_path: str,
     checkpoint: str,
@@ -246,6 +273,20 @@ def parse_args():
         default="master_evaluation_results.csv",
         help="Path for the output CSV file",
     )
+    parser.add_argument(
+        "--cache-file",
+        default=None,
+        help=(
+            "Path to persistent per-image metrics cache JSON. "
+            "Default: <logs-dir>/image_metrics_cache.json"
+        ),
+    )
+    parser.add_argument(
+        "--num-gpus",
+        type=int,
+        default=4,
+        help="Number of GPUs / parallel workers to use for unique image evaluation.",
+    )
     return parser.parse_args()
 
 
@@ -257,12 +298,69 @@ def main():
     data_root = os.path.abspath(args.data_root)
     logs_dir = os.path.abspath(args.logs_dir)
     out_csv = os.path.abspath(args.out_csv)
+    cache_path = os.path.abspath(
+        args.cache_file or os.path.join(logs_dir, "image_metrics_cache.json")
+    )
+    if args.num_gpus <= 0:
+        raise ValueError("--num-gpus must be a positive integer.")
+    num_gpus = args.num_gpus
 
     json_files = sorted(Path(logs_dir).glob("*.json"))
     if not json_files:
         print(f"No JSON files found in {logs_dir}")
         return
 
+    # Pass 1: collect all unique image paths from all JSON runs.
+    print("\n=== Pass 1/2: Collecting unique image paths from all JSON files ===")
+    all_runs_first_pass = list(_iter_json_runs(json_files))
+    unique_images = {
+        _normalize_image_path(p, data_root)
+        for run in all_runs_first_pass
+        for p in run["image_paths"]
+        if _normalize_image_path(p, data_root)
+    }
+    print(f"Found {len(all_runs_first_pass)} runs and {len(unique_images)} unique images.")
+
+    # Load cache and evaluate only missing image paths.
+    metrics_cache = _load_metrics_cache(cache_path)
+    pending_images = [p for p in sorted(unique_images) if p not in metrics_cache]
+    print(f"Cache entries: {len(metrics_cache)}; pending image evaluations: {len(pending_images)}")
+
+    failed_images: list[tuple[str, str]] = []
+    if pending_images:
+        print(f"\n=== Evaluating pending unique images in parallel ({num_gpus} workers) ===")
+        with ProcessPoolExecutor(max_workers=num_gpus) as executor:
+            futures = []
+            for i, image_path in enumerate(pending_images):
+                gpu_id = i % num_gpus
+                futures.append(
+                    executor.submit(
+                        _evaluate_image_worker,
+                        cfg_path,
+                        checkpoint,
+                        data_root,
+                        image_path,
+                        gpu_id,
+                    )
+                )
+
+            for future in tqdm(as_completed(futures), total=len(futures), desc="unique images"):
+                image_path, image_metrics, error = future.result()
+                if image_metrics:
+                    metrics_cache[image_path] = image_metrics
+                elif error:
+                    failed_images.append((image_path, error))
+
+        _save_metrics_cache(cache_path, metrics_cache)
+        print(f"Updated cache saved to: {cache_path}")
+
+    if failed_images:
+        print(f"[WARN] {len(failed_images)} images failed evaluation. First 10:")
+        for image_path, err in failed_images[:10]:
+            print(f"  - {image_path}: {err}")
+
+    # Pass 2: re-scan JSON files and compute per-run average metrics from cache.
+    print("\n=== Pass 2/2: Building CSV rows from cached per-image metrics ===")
     all_rows = []
 
     for json_path in json_files:
