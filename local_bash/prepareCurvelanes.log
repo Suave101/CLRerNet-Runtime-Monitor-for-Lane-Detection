@@ -1,0 +1,7 @@
+Preparing environment for prepareCurvelanes job
+Starting job: prepareCurvelanes
+Traceback (most recent call last):
+  File "/home1/adoyle2025/CLRerNet/tools/prepare_curvelanes.py", line 15, in <module>
+    from mmdet.utils.general_utils import getPathList, mkdir
+ModuleNotFoundError: No module named 'mmdet.utils.general_utils'
+Job completed: prepareCurvelanes

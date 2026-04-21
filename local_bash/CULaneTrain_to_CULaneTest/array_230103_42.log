@@ -1,0 +1,667 @@
+----------------------------------------------------
+Job ID: 230103 | Task ID: 42
+Processing: Run_42.txt
+Host: gpu08
+Time: Sun Apr 19 11:57:34 PM EDT 2026
+----------------------------------------------------
+04/19 23:57:38 - mmengine - INFO - 
+------------------------------------------------------------
+System environment:
+    sys.platform: linux
+    Python: 3.9.25 (main, Nov  3 2025, 22:33:05) [GCC 11.2.0]
+    CUDA available: True
+    MUSA available: False
+    numpy_random_seed: 0
+    GPU 0: NVIDIA A100-PCIE-40GB
+    CUDA_HOME: /usr/local/cuda
+    NVCC: Cuda compilation tools, release 12.9, V12.9.41
+    GCC: gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0
+    PyTorch: 2.1.0+cu121
+    PyTorch compiling details: PyTorch built with:
+  - GCC 9.3
+  - C++ Version: 201703
+  - Intel(R) oneAPI Math Kernel Library Version 2022.2-Product Build 20220804 for Intel(R) 64 architecture applications
+  - Intel(R) MKL-DNN v3.1.1 (Git Hash 64f6bcbcbab628e96f33a62c3e975f8535a7bde4)
+  - OpenMP 201511 (a.k.a. OpenMP 4.5)
+  - LAPACK is enabled (usually provided by MKL)
+  - NNPACK is enabled
+  - CPU capability usage: AVX2
+  - CUDA Runtime 12.1
+  - NVCC architecture flags: -gencode;arch=compute_50,code=sm_50;-gencode;arch=compute_60,code=sm_60;-gencode;arch=compute_70,code=sm_70;-gencode;arch=compute_75,code=sm_75;-gencode;arch=compute_80,code=sm_80;-gencode;arch=compute_86,code=sm_86;-gencode;arch=compute_90,code=sm_90
+  - CuDNN 8.9.2
+  - Magma 2.6.1
+  - Build settings: BLAS_INFO=mkl, BUILD_TYPE=Release, CUDA_VERSION=12.1, CUDNN_VERSION=8.9.2, CXX_COMPILER=/opt/rh/devtoolset-9/root/usr/bin/c++, CXX_FLAGS= -D_GLIBCXX_USE_CXX11_ABI=0 -fabi-version=11 -fvisibility-inlines-hidden -DUSE_PTHREADPOOL -DNDEBUG -DUSE_KINETO -DLIBKINETO_NOROCTRACER -DUSE_FBGEMM -DUSE_QNNPACK -DUSE_PYTORCH_QNNPACK -DUSE_XNNPACK -DSYMBOLICATE_MOBILE_DEBUG_HANDLE -O2 -fPIC -Wall -Wextra -Werror=return-type -Werror=non-virtual-dtor -Werror=bool-operation -Wnarrowing -Wno-missing-field-initializers -Wno-type-limits -Wno-array-bounds -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-function -Wno-unused-result -Wno-strict-overflow -Wno-strict-aliasing -Wno-stringop-overflow -Wno-psabi -Wno-error=pedantic -Wno-error=old-style-cast -Wno-invalid-partial-specialization -Wno-unused-private-field -Wno-aligned-allocation-unavailable -Wno-missing-braces -fdiagnostics-color=always -faligned-new -Wno-unused-but-set-variable -Wno-maybe-uninitialized -fno-math-errno -fno-trapping-math -Werror=format -Werror=cast-function-type -Wno-stringop-overflow, LAPACK_INFO=mkl, PERF_WITH_AVX=1, PERF_WITH_AVX2=1, PERF_WITH_AVX512=1, TORCH_DISABLE_GPU_ASSERTS=ON, TORCH_VERSION=2.1.0, USE_CUDA=ON, USE_CUDNN=ON, USE_EXCEPTION_PTR=1, USE_GFLAGS=OFF, USE_GLOG=OFF, USE_MKL=ON, USE_MKLDNN=ON, USE_MPI=OFF, USE_NCCL=1, USE_NNPACK=ON, USE_OPENMP=ON, USE_ROCM=OFF, 
+
+    TorchVision: 0.16.0+cu121
+    OpenCV: 4.11.0
+    MMEngine: 0.10.7
+
+Runtime environment:
+    cudnn_benchmark: False
+    mp_cfg: {'mp_start_method': 'fork', 'opencv_num_threads': 0}
+    dist_cfg: {'backend': 'nccl'}
+    seed: 0
+    deterministic: True
+    Distributed launcher: none
+    Distributed training: False
+    GPU number: 1
+------------------------------------------------------------
+
+04/19 23:57:40 - mmengine - INFO - Config:
+cfg_name = 'clrernet_culane_dla34_ema.py'
+checkpoint_config = dict(interval=50)
+compose_cfg = dict(bboxes=False, keypoints=True, masks=True)
+crop_bbox = [
+    0,
+    270,
+    1640,
+    590,
+]
+custom_hooks = [
+    dict(
+        ema_type='ExpMomentumEMA',
+        momentum=0.0001,
+        priority=49,
+        type='EMAHook',
+        update_buffers=True),
+]
+custom_imports = dict(
+    allow_failed_imports=False,
+    imports=[
+        'libs.models',
+        'libs.datasets',
+        'libs.core.bbox',
+        'libs.core.anchor',
+        'libs.core.hook',
+    ])
+data_root = 'dataset/culane'
+dataset_type = 'CulaneDataset'
+default_hooks = dict(
+    checkpoint=dict(interval=10, type='CheckpointHook'),
+    logger=dict(interval=100, type='LoggerHook'),
+    param_scheduler=dict(type='ParamSchedulerHook'),
+    sampler_seed=dict(type='DistSamplerSeedHook'),
+    timer=dict(type='IterTimerHook'),
+    visualization=dict(draw=False, type='DetVisualizationHook'))
+default_scope = 'mmdet'
+env_cfg = dict(
+    cudnn_benchmark=False,
+    dist_cfg=dict(backend='nccl'),
+    mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0))
+img_norm_cfg = dict(
+    mean=[
+        0.0,
+        0.0,
+        0.0,
+    ], std=[
+        255.0,
+        255.0,
+        255.0,
+    ], to_rgb=False)
+img_scale = (
+    800,
+    320,
+)
+launcher = 'none'
+load_from = '/home1/adoyle2025/CLRerNet/clrernet_culane_dla34_ema.pth'
+log_level = 'INFO'
+log_processor = dict(by_epoch=True, type='LogProcessor', window_size=50)
+lr_config = dict(by_epoch=False, min_lr=0.0006, policy='CosineAnnealing')
+model = dict(
+    backbone=dict(dla='dla34', pretrained=True, type='DLANet'),
+    bbox_head=dict(
+        anchor_generator=dict(
+            num_points=72, num_priors=192, type='CLRerNetAnchorGenerator'),
+        attention=dict(type='ROIGather'),
+        fc_hidden_dim=64,
+        img_h=320,
+        img_w=800,
+        loss_bbox=dict(loss_weight=0.2, reduction='none', type='SmoothL1Loss'),
+        loss_cls=dict(
+            alpha=0.25, gamma=2, loss_weight=2.0, type='KorniaFocalLoss'),
+        loss_iou=dict(
+            lane_width=0.009375, loss_weight=4.0, type='LaneIoULoss'),
+        loss_seg=dict(
+            bg_weight=0.4,
+            ignore_label=255,
+            loss_weight=1.0,
+            num_classes=5,
+            type='CLRNetSegLoss'),
+        num_fc=2,
+        prior_feat_channels=64,
+        refine_layers=3,
+        sample_points=36,
+        type='CLRerHead'),
+    data_preprocessor=dict(
+        batch_augments=None,
+        bgr_to_rgb=False,
+        mean=[
+            0,
+            0,
+            0,
+        ],
+        std=[
+            255.0,
+            255.0,
+            255.0,
+        ],
+        type='DetDataPreprocessor'),
+    neck=dict(
+        in_channels=[
+            128,
+            256,
+            512,
+        ],
+        num_outs=3,
+        out_channels=64,
+        type='CLRerNetFPN'),
+    test_cfg=dict(
+        as_lanes=True,
+        conf_threshold=0.43,
+        cut_height=270,
+        extend_bottom=True,
+        nms_thres=50,
+        nms_topk=4,
+        ori_img_h=590,
+        ori_img_w=1640,
+        use_nms=True),
+    train_cfg=dict(
+        assigner=dict(
+            cls_cost=dict(type='FocalCost', weight=1.0),
+            cost_combination=1,
+            iou_cost=dict(
+                lane_width=0.0375,
+                type='LaneIoUCost',
+                use_giou=True,
+                use_pred_start_end=True),
+            iou_dynamick=dict(
+                lane_width=0.009375,
+                type='LaneIoUCost',
+                use_giou=True,
+                use_pred_start_end=False),
+            max_topk=4,
+            min_topk=1,
+            reg_cost=dict(type='DistanceCost', weight=0.0),
+            type='DynamicTopkAssigner')),
+    type='CLRerNet')
+optim_wrapper = dict(
+    optimizer=dict(lr=0.0006, type='AdamW'), type='OptimWrapper')
+randomness = dict(deterministic=True, seed=0)
+resume = False
+test_cfg = dict(type='TestLoop')
+test_dataloader = dict(
+    batch_size=64,
+    dataset=dict(
+        data_list=
+        '/home1/adoyle2025/Distribution-Shift-Lane-Perception/logs/Exodo/1000sImageNet32d/CULane_list_train_to_CULane_list_test_7/Run_42.txt',
+        data_root='/home1/adoyle2025/Datasets/Datasets/CULane',
+        pipeline=[
+            dict(
+                pipelines=[
+                    dict(
+                        params=dict(bboxes=False, keypoints=True, masks=True),
+                        type='Compose'),
+                    dict(
+                        p=1,
+                        type='Crop',
+                        x_max=1640,
+                        x_min=0,
+                        y_max=590,
+                        y_min=270),
+                    dict(height=320, p=1, type='Resize', width=800),
+                ],
+                type='albumentation'),
+            dict(
+                meta_keys=[
+                    'filename',
+                    'sub_img_name',
+                    'ori_shape',
+                    'img_shape',
+                ],
+                type='PackCLRNetInputs'),
+        ],
+        test_mode=True,
+        type='CulaneDataset'),
+    drop_last=False,
+    num_workers=4,
+    sampler=dict(shuffle=False, type='DefaultSampler'))
+test_evaluator = dict(
+    data_list=
+    '/home1/adoyle2025/Distribution-Shift-Lane-Perception/logs/Exodo/1000sImageNet32d/CULane_list_train_to_CULane_list_test_7/Run_42.txt',
+    data_root='/home1/adoyle2025/Datasets/Datasets/CULane',
+    type='CULaneMetric')
+total_epochs = 50
+train_al_pipeline = [
+    dict(
+        params=dict(bboxes=False, keypoints=True, masks=True), type='Compose'),
+    dict(p=1, type='Crop', x_max=1640, x_min=0, y_max=590, y_min=270),
+    dict(height=320, p=1, type='Resize', width=800),
+    dict(p=0.5, type='HorizontalFlip'),
+    dict(p=0.1, type='ChannelShuffle'),
+    dict(
+        brightness_limit=0.04,
+        contrast_limit=0.15,
+        p=0.6,
+        type='RandomBrightnessContrast'),
+    dict(
+        hue_shift_limit=(
+            -10,
+            10,
+        ),
+        p=0.7,
+        sat_shift_limit=(
+            -10,
+            10,
+        ),
+        type='HueSaturationValue',
+        val_shift_limit=(
+            -10,
+            10,
+        )),
+    dict(
+        p=0.2,
+        transforms=[
+            dict(blur_limit=5, p=1.0, type='MotionBlur'),
+            dict(blur_limit=5, p=1.0, type='MedianBlur'),
+        ],
+        type='OneOf'),
+    dict(
+        p=0.7,
+        rotate=(
+            -10.0,
+            10.0,
+        ),
+        scale=(
+            0.8,
+            1.2,
+        ),
+        translate_percent=0.1,
+        type='IAAAffine'),
+    dict(height=320, p=1, type='Resize', width=800),
+]
+train_cfg = dict(max_epochs=50, type='EpochBasedTrainLoop', val_interval=10)
+train_dataloader = dict(
+    batch_size=24,
+    dataset=dict(
+        data_list='dataset/culane/list/train_gt.txt',
+        data_root='dataset/culane',
+        diff_file='dataset/culane/list/train_diffs.npz',
+        diff_thr=15,
+        pipeline=[
+            dict(
+                pipelines=[
+                    dict(
+                        params=dict(bboxes=False, keypoints=True, masks=True),
+                        type='Compose'),
+                    dict(
+                        p=1,
+                        type='Crop',
+                        x_max=1640,
+                        x_min=0,
+                        y_max=590,
+                        y_min=270),
+                    dict(height=320, p=1, type='Resize', width=800),
+                    dict(p=0.5, type='HorizontalFlip'),
+                    dict(p=0.1, type='ChannelShuffle'),
+                    dict(
+                        brightness_limit=0.04,
+                        contrast_limit=0.15,
+                        p=0.6,
+                        type='RandomBrightnessContrast'),
+                    dict(
+                        hue_shift_limit=(
+                            -10,
+                            10,
+                        ),
+                        p=0.7,
+                        sat_shift_limit=(
+                            -10,
+                            10,
+                        ),
+                        type='HueSaturationValue',
+                        val_shift_limit=(
+                            -10,
+                            10,
+                        )),
+                    dict(
+                        p=0.2,
+                        transforms=[
+                            dict(blur_limit=5, p=1.0, type='MotionBlur'),
+                            dict(blur_limit=5, p=1.0, type='MedianBlur'),
+                        ],
+                        type='OneOf'),
+                    dict(
+                        p=0.7,
+                        rotate=(
+                            -10.0,
+                            10.0,
+                        ),
+                        scale=(
+                            0.8,
+                            1.2,
+                        ),
+                        translate_percent=0.1,
+                        type='IAAAffine'),
+                    dict(height=320, p=1, type='Resize', width=800),
+                ],
+                type='albumentation'),
+            dict(
+                meta_keys=[
+                    'filename',
+                    'sub_img_name',
+                    'ori_shape',
+                    'img_shape',
+                    'ori_shape',
+                    'img_shape',
+                    'gt_points',
+                    'gt_masks',
+                    'lanes',
+                ],
+                type='PackCLRNetInputs'),
+        ],
+        test_mode=False,
+        type='CulaneDataset'),
+    num_workers=4,
+    sampler=dict(shuffle=True, type='DefaultSampler'))
+train_pipeline = [
+    dict(
+        pipelines=[
+            dict(
+                params=dict(bboxes=False, keypoints=True, masks=True),
+                type='Compose'),
+            dict(p=1, type='Crop', x_max=1640, x_min=0, y_max=590, y_min=270),
+            dict(height=320, p=1, type='Resize', width=800),
+            dict(p=0.5, type='HorizontalFlip'),
+            dict(p=0.1, type='ChannelShuffle'),
+            dict(
+                brightness_limit=0.04,
+                contrast_limit=0.15,
+                p=0.6,
+                type='RandomBrightnessContrast'),
+            dict(
+                hue_shift_limit=(
+                    -10,
+                    10,
+                ),
+                p=0.7,
+                sat_shift_limit=(
+                    -10,
+                    10,
+                ),
+                type='HueSaturationValue',
+                val_shift_limit=(
+                    -10,
+                    10,
+                )),
+            dict(
+                p=0.2,
+                transforms=[
+                    dict(blur_limit=5, p=1.0, type='MotionBlur'),
+                    dict(blur_limit=5, p=1.0, type='MedianBlur'),
+                ],
+                type='OneOf'),
+            dict(
+                p=0.7,
+                rotate=(
+                    -10.0,
+                    10.0,
+                ),
+                scale=(
+                    0.8,
+                    1.2,
+                ),
+                translate_percent=0.1,
+                type='IAAAffine'),
+            dict(height=320, p=1, type='Resize', width=800),
+        ],
+        type='albumentation'),
+    dict(
+        meta_keys=[
+            'filename',
+            'sub_img_name',
+            'ori_shape',
+            'img_shape',
+            'ori_shape',
+            'img_shape',
+            'gt_points',
+            'gt_masks',
+            'lanes',
+        ],
+        type='PackCLRNetInputs'),
+]
+val_al_pipeline = [
+    dict(
+        params=dict(bboxes=False, keypoints=True, masks=True), type='Compose'),
+    dict(p=1, type='Crop', x_max=1640, x_min=0, y_max=590, y_min=270),
+    dict(height=320, p=1, type='Resize', width=800),
+]
+val_cfg = dict(type='ValLoop')
+val_dataloader = dict(
+    batch_size=64,
+    dataset=dict(
+        data_list='dataset/culane/list/val.txt',
+        data_root='dataset/culane',
+        pipeline=[
+            dict(
+                pipelines=[
+                    dict(
+                        params=dict(bboxes=False, keypoints=True, masks=True),
+                        type='Compose'),
+                    dict(
+                        p=1,
+                        type='Crop',
+                        x_max=1640,
+                        x_min=0,
+                        y_max=590,
+                        y_min=270),
+                    dict(height=320, p=1, type='Resize', width=800),
+                ],
+                type='albumentation'),
+            dict(
+                meta_keys=[
+                    'filename',
+                    'sub_img_name',
+                    'ori_shape',
+                    'img_shape',
+                ],
+                type='PackCLRNetInputs'),
+        ],
+        test_mode=True,
+        type='CulaneDataset'),
+    drop_last=False,
+    num_workers=4,
+    sampler=dict(shuffle=False, type='DefaultSampler'))
+val_evaluator = dict(
+    data_list='dataset/culane/list/val.txt',
+    data_root='dataset/culane',
+    type='CULaneMetric')
+val_pipeline = [
+    dict(
+        pipelines=[
+            dict(
+                params=dict(bboxes=False, keypoints=True, masks=True),
+                type='Compose'),
+            dict(p=1, type='Crop', x_max=1640, x_min=0, y_max=590, y_min=270),
+            dict(height=320, p=1, type='Resize', width=800),
+        ],
+        type='albumentation'),
+    dict(
+        meta_keys=[
+            'filename',
+            'sub_img_name',
+            'ori_shape',
+            'img_shape',
+        ],
+        type='PackCLRNetInputs'),
+]
+vis_backends = [
+    dict(type='LocalVisBackend'),
+]
+visualizer = dict(
+    name='visualizer',
+    type='DetLocalVisualizer',
+    vis_backends=[
+        dict(type='LocalVisBackend'),
+    ])
+work_dir = './work_dirs/clrernet_culane_dla34_ema'
+
+04/19 23:57:41 - mmengine - INFO - Distributed training is not used, all SyncBatchNorm (SyncBN) layers in the model will be automatically reverted to BatchNormXd layers if they are used.
+04/19 23:57:41 - mmengine - INFO - Hooks will be executed in the following order:
+before_run:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+after_load_checkpoint:
+(49          ) EMAHook                            
+ -------------------- 
+before_train:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+before_train_epoch:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(NORMAL      ) IterTimerHook                      
+(NORMAL      ) DistSamplerSeedHook                
+ -------------------- 
+before_train_iter:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+after_train_iter:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+(BELOW_NORMAL) LoggerHook                         
+(LOW         ) ParamSchedulerHook                 
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+after_train_epoch:
+(NORMAL      ) IterTimerHook                      
+(LOW         ) ParamSchedulerHook                 
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+before_val:
+(VERY_HIGH   ) RuntimeInfoHook                    
+ -------------------- 
+before_val_epoch:
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+before_val_iter:
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+after_val_iter:
+(NORMAL      ) IterTimerHook                      
+(NORMAL      ) DetVisualizationHook               
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+after_val_epoch:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+(BELOW_NORMAL) LoggerHook                         
+(LOW         ) ParamSchedulerHook                 
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+after_val:
+(VERY_HIGH   ) RuntimeInfoHook                    
+ -------------------- 
+before_save_checkpoint:
+(49          ) EMAHook                            
+ -------------------- 
+after_train:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(VERY_LOW    ) CheckpointHook                     
+ -------------------- 
+before_test:
+(VERY_HIGH   ) RuntimeInfoHook                    
+ -------------------- 
+before_test_epoch:
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+before_test_iter:
+(NORMAL      ) IterTimerHook                      
+ -------------------- 
+after_test_iter:
+(NORMAL      ) IterTimerHook                      
+(NORMAL      ) DetVisualizationHook               
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+after_test_epoch:
+(VERY_HIGH   ) RuntimeInfoHook                    
+(49          ) EMAHook                            
+(NORMAL      ) IterTimerHook                      
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+after_test:
+(VERY_HIGH   ) RuntimeInfoHook                    
+ -------------------- 
+after_run:
+(BELOW_NORMAL) LoggerHook                         
+ -------------------- 
+1000 data are loaded
+04/19 23:57:43 - mmengine - WARNING - The prefix is not set in metric class CULaneMetric.
+Loads checkpoint by local backend from path: /home1/adoyle2025/CLRerNet/clrernet_culane_dla34_ema.pth
+The model and loaded state dict do not match exactly
+
+missing keys in source state_dict: bbox_head.loss_seg.criterion.weight, bbox_head.seg_decoder.conv.weight, bbox_head.seg_decoder.conv.bias
+
+The model and loaded state dict do not match exactly
+
+missing keys in source state_dict: bbox_head.loss_seg.criterion.weight, bbox_head.seg_decoder.conv.weight, bbox_head.seg_decoder.conv.bias
+
+04/19 23:57:44 - mmengine - INFO - Load checkpoint from /home1/adoyle2025/CLRerNet/clrernet_culane_dla34_ema.pth
+  0%|          | 0/1000 [00:00<?, ?it/s] 18%|█▊        | 181/1000 [00:00<00:00, 1809.59it/s] 36%|███▌      | 362/1000 [00:00<00:00, 1770.72it/s] 55%|█████▍    | 545/1000 [00:00<00:00, 1795.65it/s] 73%|███████▎  | 733/1000 [00:00<00:00, 1825.93it/s] 92%|█████████▏| 918/1000 [00:00<00:00, 1833.77it/s]100%|██████████| 1000/1000 [00:00<00:00, 1824.20it/s]
+04/19 23:57:52 - mmengine - INFO - List: /home1/adoyle2025/Distribution-Shift-Lane-Perception/logs/Exodo/1000sImageNet32d/CULane_list_train_to_CULane_list_test_7/Run_42.txt
+04/19 23:57:52 - mmengine - INFO - Loading prediction data...
+  0%|          | 0/1000 [00:00<?, ?it/s] 57%|█████▋    | 566/1000 [00:00<00:00, 5656.31it/s]100%|██████████| 1000/1000 [00:00<00:00, 5727.53it/s]
+04/19 23:57:52 - mmengine - INFO - Loading annotation data...
+  0%|          | 0/1000 [00:00<?, ?it/s] 14%|█▍        | 139/1000 [00:00<00:00, 1383.55it/s] 28%|██▊       | 278/1000 [00:00<00:00, 1354.49it/s] 44%|████▎     | 435/1000 [00:00<00:00, 1448.93it/s] 60%|█████▉    | 596/1000 [00:00<00:00, 1511.34it/s] 75%|███████▍  | 748/1000 [00:00<00:00, 1418.40it/s] 91%|█████████ | 909/1000 [00:00<00:00, 1480.08it/s]100%|██████████| 1000/1000 [00:00<00:00, 1496.24it/s]
+04/19 23:57:53 - mmengine - INFO - Calculating metric in parallel...
+  0%|          | 0/1000 [00:00<?, ?it/s]  0%|          | 1/1000 [00:00<02:57,  5.62it/s]  0%|          | 2/1000 [00:00<03:17,  5.05it/s]  2%|▏         | 17/1000 [00:00<00:22, 43.06it/s]  2%|▏         | 23/1000 [00:00<00:30, 31.72it/s]  3%|▎         | 34/1000 [00:00<00:21, 45.51it/s]  4%|▍         | 40/1000 [00:01<00:22, 41.78it/s]  4%|▍         | 45/1000 [00:01<00:22, 41.64it/s]  6%|▌         | 57/1000 [00:01<00:20, 44.93it/s]  6%|▌         | 62/1000 [00:01<00:27, 33.90it/s]  8%|▊         | 75/1000 [00:01<00:18, 49.69it/s]  8%|▊         | 82/1000 [00:02<00:19, 47.59it/s]  9%|▉         | 88/1000 [00:02<00:23, 39.31it/s] 10%|▉         | 97/1000 [00:02<00:27, 33.30it/s] 10%|█         | 102/1000 [00:02<00:28, 30.97it/s] 11%|█         | 109/1000 [00:02<00:24, 36.57it/s] 11%|█▏        | 114/1000 [00:03<00:23, 37.61it/s] 12%|█▏        | 119/1000 [00:03<00:26, 33.21it/s] 13%|█▎        | 131/1000 [00:03<00:24, 35.68it/s] 15%|█▍        | 147/1000 [00:03<00:17, 47.76it/s] 15%|█▌        | 153/1000 [00:04<00:25, 33.02it/s] 16%|█▌        | 158/1000 [00:04<00:30, 28.01it/s] 18%|█▊        | 176/1000 [00:04<00:18, 44.27it/s] 18%|█▊        | 182/1000 [00:04<00:21, 38.01it/s] 19%|█▉        | 191/1000 [00:05<00:20, 38.75it/s] 20%|█▉        | 196/1000 [00:05<00:19, 40.30it/s] 20%|██        | 201/1000 [00:05<00:23, 34.00it/s] 22%|██▏       | 220/1000 [00:05<00:14, 54.36it/s] 23%|██▎       | 227/1000 [00:05<00:17, 43.26it/s] 23%|██▎       | 234/1000 [00:06<00:17, 44.92it/s] 24%|██▍       | 240/1000 [00:06<00:18, 40.64it/s] 24%|██▍       | 245/1000 [00:06<00:19, 38.19it/s] 25%|██▌       | 251/1000 [00:06<00:20, 36.30it/s] 26%|██▌       | 255/1000 [00:06<00:20, 36.44it/s] 26%|██▋       | 264/1000 [00:06<00:20, 36.57it/s] 27%|██▋       | 271/1000 [00:07<00:18, 39.04it/s] 28%|██▊       | 276/1000 [00:07<00:22, 32.27it/s] 28%|██▊       | 280/1000 [00:07<00:23, 31.09it/s] 29%|██▉       | 288/1000 [00:07<00:20, 34.94it/s] 29%|██▉       | 293/1000 [00:07<00:22, 31.81it/s] 31%|███       | 306/1000 [00:07<00:14, 48.63it/s] 32%|███▏      | 315/1000 [00:08<00:14, 47.88it/s] 32%|███▏      | 321/1000 [00:08<00:14, 47.65it/s] 33%|███▎      | 328/1000 [00:08<00:14, 47.52it/s] 34%|███▎      | 336/1000 [00:08<00:13, 50.33it/s] 34%|███▍      | 342/1000 [00:08<00:17, 38.69it/s] 35%|███▍      | 347/1000 [00:09<00:21, 30.94it/s] 35%|███▌      | 354/1000 [00:09<00:23, 27.00it/s] 36%|███▋      | 363/1000 [00:09<00:20, 30.38it/s] 38%|███▊      | 375/1000 [00:09<00:14, 42.34it/s] 38%|███▊      | 381/1000 [00:09<00:13, 45.03it/s] 39%|███▉      | 393/1000 [00:10<00:10, 58.40it/s] 40%|████      | 401/1000 [00:10<00:11, 53.59it/s] 41%|████      | 408/1000 [00:10<00:16, 36.54it/s] 41%|████▏     | 413/1000 [00:10<00:19, 29.79it/s] 42%|████▏     | 418/1000 [00:11<00:20, 27.93it/s] 42%|████▏     | 423/1000 [00:11<00:24, 23.33it/s] 43%|████▎     | 434/1000 [00:11<00:18, 30.18it/s] 45%|████▌     | 452/1000 [00:11<00:11, 47.93it/s] 46%|████▌     | 459/1000 [00:12<00:14, 38.31it/s] 48%|████▊     | 477/1000 [00:12<00:09, 54.67it/s] 48%|████▊     | 484/1000 [00:12<00:12, 40.74it/s] 49%|████▉     | 490/1000 [00:12<00:13, 37.12it/s] 50%|████▉     | 498/1000 [00:13<00:13, 36.59it/s] 50%|█████     | 505/1000 [00:13<00:12, 40.19it/s] 52%|█████▏    | 515/1000 [00:13<00:09, 50.38it/s] 52%|█████▏    | 522/1000 [00:13<00:12, 38.24it/s] 53%|█████▎    | 534/1000 [00:13<00:09, 50.92it/s] 54%|█████▍    | 541/1000 [00:13<00:10, 44.73it/s] 55%|█████▍    | 547/1000 [00:14<00:13, 32.92it/s] 56%|█████▌    | 556/1000 [00:14<00:11, 37.11it/s] 56%|█████▌    | 561/1000 [00:14<00:11, 36.79it/s] 58%|█████▊    | 577/1000 [00:14<00:10, 38.80it/s] 59%|█████▉    | 590/1000 [00:15<00:08, 45.67it/s] 60%|█████▉    | 595/1000 [00:15<00:09, 41.98it/s] 60%|██████    | 601/1000 [00:15<00:13, 29.01it/s] 62%|██████▎   | 625/1000 [00:15<00:06, 55.77it/s] 63%|██████▎   | 634/1000 [00:16<00:09, 36.87it/s] 64%|██████▍   | 641/1000 [00:16<00:09, 38.99it/s] 66%|██████▌   | 657/1000 [00:16<00:06, 50.06it/s] 67%|██████▋   | 666/1000 [00:16<00:07, 46.88it/s] 67%|██████▋   | 673/1000 [00:17<00:06, 50.33it/s] 68%|██████▊   | 680/1000 [00:17<00:05, 53.65it/s] 69%|██████▊   | 687/1000 [00:17<00:09, 34.15it/s] 70%|███████   | 705/1000 [00:17<00:05, 53.35it/s] 71%|███████▏  | 713/1000 [00:17<00:05, 53.67it/s] 72%|███████▎  | 725/1000 [00:18<00:04, 57.39it/s] 73%|███████▎  | 732/1000 [00:18<00:08, 31.66it/s] 74%|███████▍  | 738/1000 [00:18<00:07, 34.60it/s] 75%|███████▍  | 749/1000 [00:18<00:06, 39.90it/s] 76%|███████▌  | 757/1000 [00:19<00:06, 36.55it/s] 77%|███████▋  | 770/1000 [00:19<00:04, 46.68it/s] 78%|███████▊  | 776/1000 [00:19<00:05, 38.68it/s] 79%|███████▊  | 787/1000 [00:19<00:04, 46.40it/s] 79%|███████▉  | 793/1000 [00:20<00:05, 37.37it/s] 81%|████████  | 811/1000 [00:20<00:03, 59.70it/s] 82%|████████▏ | 820/1000 [00:20<00:04, 42.24it/s] 83%|████████▎ | 828/1000 [00:20<00:05, 33.91it/s] 83%|████████▎ | 834/1000 [00:21<00:05, 30.11it/s] 84%|████████▍ | 839/1000 [00:21<00:05, 27.69it/s] 86%|████████▋ | 863/1000 [00:21<00:02, 49.96it/s] 87%|████████▋ | 870/1000 [00:21<00:02, 49.20it/s] 88%|████████▊ | 876/1000 [00:21<00:02, 44.02it/s] 89%|████████▉ | 889/1000 [00:22<00:02, 46.56it/s] 90%|████████▉ | 895/1000 [00:22<00:02, 43.80it/s] 91%|█████████ | 908/1000 [00:22<00:01, 56.34it/s] 92%|█████████▏| 915/1000 [00:22<00:02, 37.77it/s] 93%|█████████▎| 931/1000 [00:23<00:01, 52.98it/s] 94%|█████████▍| 939/1000 [00:23<00:01, 51.68it/s] 95%|█████████▍| 946/1000 [00:23<00:01, 35.39it/s] 96%|█████████▌| 959/1000 [00:23<00:01, 37.80it/s] 96%|█████████▋| 964/1000 [00:24<00:01, 30.08it/s] 99%|█████████▉| 988/1000 [00:24<00:00, 49.35it/s]100%|██████████| 1000/1000 [00:24<00:00, 40.82it/s]
+04/19 23:58:19 - mmengine - INFO - Evaluation results for IoU threshold = 0.1
+04/19 23:58:19 - mmengine - INFO - Eval category: test_all    , N: 1000, TP:  2466, FP:   143, FN:   549, Precision: 0.9452, Recall: 0.8179, F1: 0.8770
+04/19 23:58:19 - mmengine - INFO - Eval category: test0_normal, N:  243, TP:   828, FP:     7, FN:    13, Precision: 0.9916, Recall: 0.9845, F1: 0.9881
+04/19 23:58:19 - mmengine - INFO - Eval category: test1_crowd , N:  243, TP:   673, FP:    28, FN:   149, Precision: 0.9601, Recall: 0.8187, F1: 0.8838
+04/19 23:58:19 - mmengine - INFO - Eval category: test2_hlight, N:   15, TP:    39, FP:     9, FN:    10, Precision: 0.8125, Recall: 0.7959, F1: 0.8041
+04/19 23:58:19 - mmengine - INFO - Eval category: test3_shadow, N:   35, TP:    97, FP:     0, FN:    10, Precision: 1.0000, Recall: 0.9065, F1: 0.9510
+04/19 23:58:19 - mmengine - INFO - Eval category: test4_noline, N:  107, TP:   199, FP:    23, FN:   173, Precision: 0.8964, Recall: 0.5349, F1: 0.6700
+04/19 23:58:19 - mmengine - INFO - Eval category: test5_arrow , N:   16, TP:    49, FP:     0, FN:    10, Precision: 1.0000, Recall: 0.8305, F1: 0.9074
+04/19 23:58:19 - mmengine - INFO - Eval category: test6_curve , N:   18, TP:    35, FP:     1, FN:    21, Precision: 0.9722, Recall: 0.6250, F1: 0.7609
+04/19 23:58:19 - mmengine - INFO - Eval category: test7_cross , N:   93, TP:     0, FP:    53, FN:     0, Precision: 0.0000, Recall: 0.0000, F1: 0.0000
+04/19 23:58:19 - mmengine - INFO - Eval category: test8_night , N:  230, TP:   546, FP:    22, FN:   163, Precision: 0.9613, Recall: 0.7701, F1: 0.8551
+04/19 23:58:19 - mmengine - INFO - Evaluation results for IoU threshold = 0.5
+04/19 23:58:19 - mmengine - INFO - Eval category: test_all    , N: 1000, TP:  2267, FP:   342, FN:   748, Precision: 0.8689, Recall: 0.7519, F1: 0.8062
+04/19 23:58:19 - mmengine - INFO - Eval category: test0_normal, N:  243, TP:   788, FP:    47, FN:    53, Precision: 0.9437, Recall: 0.9370, F1: 0.9403
+04/19 23:58:19 - mmengine - INFO - Eval category: test1_crowd , N:  243, TP:   612, FP:    89, FN:   210, Precision: 0.8730, Recall: 0.7445, F1: 0.8037
+04/19 23:58:19 - mmengine - INFO - Eval category: test2_hlight, N:   15, TP:    36, FP:    12, FN:    13, Precision: 0.7500, Recall: 0.7347, F1: 0.7423
+04/19 23:58:19 - mmengine - INFO - Eval category: test3_shadow, N:   35, TP:    89, FP:     8, FN:    18, Precision: 0.9175, Recall: 0.8318, F1: 0.8725
+04/19 23:58:19 - mmengine - INFO - Eval category: test4_noline, N:  107, TP:   170, FP:    52, FN:   202, Precision: 0.7658, Recall: 0.4570, F1: 0.5724
+04/19 23:58:19 - mmengine - INFO - Eval category: test5_arrow , N:   16, TP:    48, FP:     1, FN:    11, Precision: 0.9796, Recall: 0.8136, F1: 0.8889
+04/19 23:58:19 - mmengine - INFO - Eval category: test6_curve , N:   18, TP:    28, FP:     8, FN:    28, Precision: 0.7778, Recall: 0.5000, F1: 0.6087
+04/19 23:58:19 - mmengine - INFO - Eval category: test7_cross , N:   93, TP:     0, FP:    53, FN:     0, Precision: 0.0000, Recall: 0.0000, F1: 0.0000
+04/19 23:58:19 - mmengine - INFO - Eval category: test8_night , N:  230, TP:   496, FP:    72, FN:   213, Precision: 0.8732, Recall: 0.6996, F1: 0.7768
+04/19 23:58:19 - mmengine - INFO - Evaluation results for IoU threshold = 0.75
+04/19 23:58:19 - mmengine - INFO - Eval category: test_all    , N: 1000, TP:  1818, FP:   791, FN:  1197, Precision: 0.6968, Recall: 0.6030, F1: 0.6465
+04/19 23:58:19 - mmengine - INFO - Eval category: test0_normal, N:  243, TP:   686, FP:   149, FN:   155, Precision: 0.8216, Recall: 0.8157, F1: 0.8186
+04/19 23:58:19 - mmengine - INFO - Eval category: test1_crowd , N:  243, TP:   483, FP:   218, FN:   339, Precision: 0.6890, Recall: 0.5876, F1: 0.6343
+04/19 23:58:19 - mmengine - INFO - Eval category: test2_hlight, N:   15, TP:    26, FP:    22, FN:    23, Precision: 0.5417, Recall: 0.5306, F1: 0.5361
+04/19 23:58:19 - mmengine - INFO - Eval category: test3_shadow, N:   35, TP:    66, FP:    31, FN:    41, Precision: 0.6804, Recall: 0.6168, F1: 0.6471
+04/19 23:58:19 - mmengine - INFO - Eval category: test4_noline, N:  107, TP:   112, FP:   110, FN:   260, Precision: 0.5045, Recall: 0.3011, F1: 0.3771
+04/19 23:58:19 - mmengine - INFO - Eval category: test5_arrow , N:   16, TP:    44, FP:     5, FN:    15, Precision: 0.8980, Recall: 0.7458, F1: 0.8148
+04/19 23:58:19 - mmengine - INFO - Eval category: test6_curve , N:   18, TP:    23, FP:    13, FN:    33, Precision: 0.6389, Recall: 0.4107, F1: 0.5000
+04/19 23:58:19 - mmengine - INFO - Eval category: test7_cross , N:   93, TP:     0, FP:    53, FN:     0, Precision: 0.0000, Recall: 0.0000, F1: 0.0000
+04/19 23:58:19 - mmengine - INFO - Eval category: test8_night , N:  230, TP:   378, FP:   190, FN:   331, Precision: 0.6655, Recall: 0.5331, F1: 0.5920
+04/19 23:58:19 - mmengine - INFO - Epoch(test) [16/16]    TP0.1: 2466  FP0.1: 143  FN0.1: 549  Precision0.1: 0.9452  Recall0.1: 0.8179  F1_0.1: 0.8770  F1_test0_normal_0.1: 0.9881  F1_test1_crowd_0.1: 0.8838  F1_test2_hlight_0.1: 0.8041  F1_test3_shadow_0.1: 0.9510  F1_test4_noline_0.1: 0.6700  F1_test5_arrow_0.1: 0.9074  F1_test6_curve_0.1: 0.7609  F1_test7_cross_0.1: 0.0000  F1_test8_night_0.1: 0.8551  TP0.5: 2267  FP0.5: 342  FN0.5: 748  Precision0.5: 0.8689  Recall0.5: 0.7519  F1_0.5: 0.8062  F1_test0_normal_0.5: 0.9403  F1_test1_crowd_0.5: 0.8037  F1_test2_hlight_0.5: 0.7423  F1_test3_shadow_0.5: 0.8725  F1_test4_noline_0.5: 0.5724  F1_test5_arrow_0.5: 0.8889  F1_test6_curve_0.5: 0.6087  F1_test7_cross_0.5: 0.0000  F1_test8_night_0.5: 0.7768  TP0.75: 1818  FP0.75: 791  FN0.75: 1197  Precision0.75: 0.6968  Recall0.75: 0.6030  F1_0.75: 0.6465  F1_test0_normal_0.75: 0.8186  F1_test1_crowd_0.75: 0.6343  F1_test2_hlight_0.75: 0.5361  F1_test3_shadow_0.75: 0.6471  F1_test4_noline_0.75: 0.3771  F1_test5_arrow_0.75: 0.8148  F1_test6_curve_0.75: 0.5000  F1_test7_cross_0.75: 0.0000  F1_test8_night_0.75: 0.5920  data_time: 0.1416  time: 0.4561
+🚀 Initializing CLRerNet evaluation...
+📄 Input List: /home1/adoyle2025/Distribution-Shift-Lane-Perception/logs/Exodo/1000sImageNet32d/CULane_list_train_to_CULane_list_test_7/Run_42.txt
+📂 Associated Output Tracking: work_dirs/exodo/1000sImageNet32d/CULane_list_train_to_CULane_list_test_7/Run_42
+
+
+✅ Evaluation complete!
+----------------------------------------------------
+✅ Task 42 Finished at Sun Apr 19 11:58:21 PM EDT 2026
