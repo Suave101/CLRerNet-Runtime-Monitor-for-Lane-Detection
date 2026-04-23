@@ -2,7 +2,13 @@ import subprocess
 import os
 import argparse
 from pathlib import Path
-from mmcv.utils import Config
+try:
+    from mmcv.utils import Config
+except ImportError:
+    try:
+        from mmcv import Config
+    except ImportError:
+        from mmengine.config import Config
 
 
 def run_experiment(listFile):
